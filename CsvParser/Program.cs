@@ -27,7 +27,7 @@ namespace CsvParser
 
                 foreach (IngData csvData in results)
                 {
-                    
+                    //TODO: Convert to .mt940
                 }
             }
             Console.ReadKey();

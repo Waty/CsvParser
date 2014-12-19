@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Globalization;
+using System.Linq;
+using CsvHelper;
 using CsvHelper.Configuration;
 
 namespace CsvParser
@@ -13,29 +15,61 @@ namespace CsvParser
 
         public IngDataMap()
         {
-            Map(m => m.Datum).ConvertUsing(x =>
+            Map(m => m.Datum).Name("Datum").ConvertUsing(DateTimeParser);
+            Map(m => m.Naam).Name("Naam / Omschrijving");
+            Map(m => m.Rekening).Name("Rekening");
+            Map(m => m.Tegenrekening).Name("Tegenrekening");
+            Map(m => m.Code).Name("Code");
+            Map(m => m.AfBij).Name("Af Bij");
+            Map(m => m.Bedrag).Name("Bedrag (EUR)");
+            Map(m => m.MutatieSoort).Name("MutatieSoort");
+            Map(m => m.MededelingenString).Name("Mededelingen");
+            Map(m => m.Mededelingen).Name("Mededelingen").ConvertUsing(MededelingenParser);
+        }
+
+
+        private static DateTime DateTimeParser(ICsvReaderRow x)
+        {
+            string s = x.GetField("Datum");
+
+            DateTime date;
+            if (DateTime.TryParse(s, out date) ||
+                DateTime.TryParseExact(s, DateTimeFormats, CultureInfo.CurrentCulture, DateTimeStyles.None, out date))
             {
-                string s = x.CurrentRecord[0];
+                return date;
+            }
 
-                DateTime date;
-                if (DateTime.TryParse(s, out date) ||
-                    DateTime.TryParseExact(s, DateTimeFormats, CultureInfo.CurrentCulture, DateTimeStyles.None, out date))
+            Console.WriteLine(s + " is a invalid string format");
+
+            throw new InvalidOperationException("Couldn't convert '" + s + "' to a DateTime");
+        }
+
+        private static IngData.MededelingenData MededelingenParser(ICsvReaderRow row)
+        {
+            string mededelingen = row.GetField("Mededelingen");
+
+            var options = new[] {"BIC", "Crediteur", "IBAN", "Kenmerk", "Mandaat", "Naam", "Omschrijving"};
+
+            var results = options.Select(
+                o => new {Option = o, Index = mededelingen.IndexOf(o, StringComparison.CurrentCultureIgnoreCase)})
+                .Where(obj => obj.Index > -1)
+                .OrderByDescending(obj => obj.Index).ToList();
+
+            var data = new IngData.MededelingenData();
+            foreach (var result in results)
+            {
+                string subStr = mededelingen.Substring(result.Index + result.Option.Length);
+
+                if (subStr.StartsWith(":"))
                 {
-                    return date;
+                    subStr = subStr.Remove(0, 1);
                 }
+                mededelingen = mededelingen.Remove(result.Index).Trim();
 
-                Console.WriteLine(s +  " is a invalid string format");
+                data.SetOption(result.Option, subStr);
+            }
 
-                throw new InvalidOperationException("Couldn't convert '" + s + "' to a DateTime");
-            });
-            Map(m => m.Naam).Index(1);
-            Map(m => m.Rekening).Index(2);
-            Map(m => m.Tegenrekening).Index(3);
-            Map(m => m.Code).Index(4);
-            Map(m => m.AfBij).Index(5);
-            Map(m => m.Bedrag).Index(6);
-            Map(m => m.MutatieSoort).Index(7);
-            Map(m => m.MededelingenString).Index(8);
+            return data;
         }
     }
 }

@@ -5,21 +5,12 @@ namespace CsvParser
 {
     internal class IngData
     {
-        private string mededelingenString;
         public string AfBij { get; set; }
         public double Bedrag { get; set; } //(EUR)
         public string Code { get; set; }
         public DateTime Datum { get; set; }
 
-        public string MededelingenString
-        {
-            get { return mededelingenString; }
-            set
-            {
-                mededelingenString = value;
-                Mededelingen = ParseMededelingen(value);
-            }
-        }
+        public string MededelingenString { get; set; }
 
         public string MutatieSoort { get; set; }
         public string Naam { get; set; }
@@ -28,31 +19,6 @@ namespace CsvParser
 
         public MededelingenData Mededelingen { get; set; }
 
-        private static MededelingenData ParseMededelingen(string mededelingen)
-        {
-            var options = new[] { "BIC", "Crediteur", "IBAN", "Kenmerk", "Mandaat", "Naam", "Omschrijving" };
-
-            var results = options.Select(
-                o => new { Option = o, Index = mededelingen.IndexOf(o, StringComparison.CurrentCultureIgnoreCase) })
-                .Where(obj => obj.Index > -1)
-                .OrderByDescending(obj => obj.Index).ToList();
-
-            var data = new MededelingenData();
-            foreach (var result in results)
-            {
-                string subStr = mededelingen.Substring(result.Index + result.Option.Length);
-
-                if (subStr.StartsWith(":"))
-                {
-                    subStr = subStr.Remove(0, 1);
-                }
-                mededelingen = mededelingen.Remove(result.Index).Trim();
-
-                data.SetOption(result.Option, subStr);
-            }
-
-            return data;
-        }
 
         public class MededelingenData
         {
